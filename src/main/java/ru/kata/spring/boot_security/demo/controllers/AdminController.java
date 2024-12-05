@@ -1,81 +1,92 @@
 package ru.kata.spring.boot_security.demo.controllers;
 
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import ru.kata.spring.boot_security.demo.dao.RoleDAO;
 import ru.kata.spring.boot_security.demo.model.User;
-import ru.kata.spring.boot_security.demo.service.RoleService;
-import ru.kata.spring.boot_security.demo.service.UserService;
+import ru.kata.spring.boot_security.demo.service.UserServiceImpl;
 
+import javax.validation.Valid;
 import java.security.Principal;
 
-
 @Controller
-@RequestMapping("/admin")
+@RequestMapping("/")
 public class AdminController {
-
-    private final UserService userService;
-    private final RoleService roleService;
-
-    public AdminController(UserService userService, RoleService roleService) {
+    private final UserServiceImpl userService;
+    private final RoleDAO roleDAO;
+    @Autowired
+    public AdminController(UserServiceImpl userService, RoleDAO roleDAO) {
         this.userService = userService;
-        this.roleService = roleService;
+        this.roleDAO = roleDAO;
+    }
+///////////////////////////////////////login////////////////////////////////////////////////
+
+    @RequestMapping("/login")
+    public String login() {
+        return "/login";
     }
 
+    // Login form with error
+    @RequestMapping("/login_error")
+    public String loginError(Model model) {
+        model.addAttribute("loginError", true);
+        return "/login";
+    }
 
-    @GetMapping
-    public String allUserTable(Model model, Principal principal) {
+///////////////////////////////////////admin////////////////////////////////////////////////
+
+    @GetMapping(value = "")
+    public String getUsersListForm(Model model, Principal principal) {
+        final String principalName = principal == null ? "aaaa" : principal.getName();
+        final User user = userService.getUserByName(principalName);
+        if (user == null) {
+            throw new UsernameNotFoundException("User with principalName: " + principalName + " not found");
+        }
+        model.addAttribute("user", new User());
+        model.addAttribute("roles1", roleDAO.findAll());
+        model.addAttribute("users1", user); // с данными user'а
         model.addAttribute("users", userService.findAllUsers());
-        model.addAttribute("roles", roleService.findAll());
-        model.addAttribute("currentUserEmail", principal.getName());
-        model.addAttribute("currentUserRoles", userService.findByEmail(principal.getName()).getAuthorities());
-
-        User currentUser = userService.findByEmail(principal.getName());
-        model.addAttribute("user", currentUser);
-        return "users";
+        return "/code-basics";
     }
 
-
-    @GetMapping("/user")
-    public String showUser(@RequestParam(value = "id") Long id, Model model) {
-        model.addAttribute("user", userService.findUserById(id));
-        return "user";
+    //////////////////////////////edit/update/showById//////////////////////////////////
+    @PostMapping("/edit")
+    public String updateUser(@ModelAttribute User user,
+                             BindingResult bindingResult, Model model) {
+        System.out.println("-------------------------------------------------------UserController.updateUser");
+        System.out.println("-------------------------------------------------------user = " + user + ", bindingResult = " + bindingResult + ", model = " + model);
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("userEdit", user);
+            model.addAttribute("rolesEdit", roleDAO.findAll());
+            return "/code-basics";
+        }
+        userService.updateUser(user);
+        return "redirect:/";
     }
 
-    @PostMapping("/new")
-    public String addUser(@ModelAttribute("user") User user) {
+    ////////////////////////////////create new user//////////////////////////////////////
+
+    @PostMapping("/user")
+    @ResponseStatus(HttpStatus.CREATED)
+    public String addUser(@ModelAttribute("user") @Valid User user,
+                          BindingResult bindingResult, Model model) {
+        userService.conditionForBindingResult(bindingResult);
         userService.saveUser(user);
-        return "redirect:/admin";
+        return "redirect:/";
     }
 
-    @GetMapping("/update/{id}")
-    public String createUpdateForm(@PathVariable("id") Long id, Model model) {
-        model.addAttribute("user", userService.findUserById(id));
-        model.addAttribute("roles", roleService.findAll());
-        return "users";
-    }
 
-    @PostMapping("/update/{id}")
-    public String updateUser(@PathVariable("id") Long id, @ModelAttribute("user") User user, RedirectAttributes redirectAttributes) {
-        userService.updateUser(id, user);
-        redirectAttributes.addFlashAttribute("success", "User updated successfully!");
-        return "redirect:/admin";
-    }
+/////////////////////////////////delete///////////////////////////////////////////////
 
-    @PostMapping("/delete/{id}")
-    public String deleteUser(@PathVariable("id") Long id, RedirectAttributes redirectAttributes) {
+    @PostMapping("")
+    public String deleteUser(@RequestParam("id") Long id) {
         userService.deleteUser(id);
-        redirectAttributes.addFlashAttribute("success", "User deleted successfully!");
-        return "redirect:/admin";
+        return "redirect:/";
     }
-
-    @GetMapping("/users")
-    public String showAllUsers(Model model) {
-        model.addAttribute("users", userService.findAllUsers());
-        return "users";
-    }
-
 
 }

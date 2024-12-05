@@ -1,25 +1,40 @@
 package ru.kata.spring.boot_security.demo.service;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import ru.kata.spring.boot_security.demo.dao.RoleDAO;
+import ru.kata.spring.boot_security.demo.dao.UserDAO;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
+    @PersistenceContext
+    private EntityManager entityManager;
+    private final UserDAO userDAO;
+    private final RoleDAO roleDAO;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserDAO userDAO,
+                           RoleDAO roleDAO,
+                           UserRepository userRepository,
+                           BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userDAO = userDAO;
+        this.roleDAO = roleDAO;
     }
 
     @Override
@@ -42,27 +57,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
-    public boolean updateUser(Long id, User updatedUser) {
-        Optional<User> userFromDb = userRepository.findById(id);
-        if (userFromDb.isPresent()) {
-            User existingUser = userFromDb.get();
-
-            existingUser.setFirstname(updatedUser.getFirstname());
-            existingUser.setLastname(updatedUser.getLastname());
-            existingUser.setEmail(updatedUser.getEmail());
-            existingUser.setAge(updatedUser.getAge());
-
-            if (!updatedUser.getPassword().equals(existingUser.getPassword())) {
-                existingUser.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
-            }
-
-            existingUser.setRoles(updatedUser.getRoles());
-
-            userRepository.save(existingUser);
-            return true;
-        }
-        return false;
+    public void updateUser(User user) {
+//        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        entityManager.merge(user);
+        userDAO.save(user);
     }
 
     @Override
@@ -76,7 +74,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getUserByName(String name) {
+        return userDAO.findByName(name);
+    }
+
+    @Override
     public User findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
+    public void conditionForBindingResult(BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            StringBuilder errorMsg = new StringBuilder();
+
+            List<FieldError> errors = bindingResult.getFieldErrors();
+            for (FieldError error : errors) {
+                errorMsg.append(error.getField())
+                        .append(" - ")
+                        .append(error.getDefaultMessage())
+                        .append(";");
+            }
+            throw new UsernameNotFoundException(errorMsg.toString());
+        }
+    }
 }
+

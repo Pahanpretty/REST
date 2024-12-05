@@ -1,6 +1,7 @@
 package ru.kata.spring.boot_security.demo.service;
 
 
+import org.springframework.data.jpa.repository.Query;
 import ru.kata.spring.boot_security.demo.model.User;
 
 import java.util.List;
@@ -14,12 +15,14 @@ public interface UserService {
 
     void saveUser(User user);
 
-
-    boolean updateUser(Long id, User user);
+    void updateUser(User user);
 
     boolean deleteUser(Long userId);
 
     User findByEmail(String email);
+
+ @Query("SELECT u FROM User u WHERE u.name = :name")
+ User getUserByName(String name);
 
 
 
