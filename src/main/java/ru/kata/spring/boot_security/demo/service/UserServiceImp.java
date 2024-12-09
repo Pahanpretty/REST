@@ -4,36 +4,36 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.kata.spring.boot_security.demo.dto.RoleDto;
 import ru.kata.spring.boot_security.demo.dto.UserDto;
 import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
-import ru.kata.spring.boot_security.demo.util.UserMapper;
+import ru.kata.spring.boot_security.demo.mappers.UserMapper;
 
-
-import java.util.*;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-public class UserServiceImp implements UserService, UserDetailsService {
+public class UserServiceImp implements UserService {
 
     private final UserRepository userRepository;
 
 
     private final UserMapper userMapper;
 
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public UserServiceImp(UserRepository userRepository,
                           UserMapper userMapper,
-                          BCryptPasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
@@ -94,9 +94,6 @@ public class UserServiceImp implements UserService, UserDetailsService {
     public void addUserWithRoles(UserDto userDto) {
         User user = userMapper.toModel(userDto);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-        setRolesToUser(user, userDto.getRoles());
-
         userRepository.save(user);
     }
 
@@ -112,20 +109,10 @@ public class UserServiceImp implements UserService, UserDetailsService {
             existingUser.setAge(userDto.getAge());
             existingUser.setEmail(userDto.getEmail());
             existingUser.setPassword(userDto.getPassword());
-
-            setRolesToUser(existingUser, userDto.getRoles());
-
             userRepository.save(existingUser);
         }
     }
-    private void setRolesToUser(User user, Set<RoleDto> roleDtoSet) {
-        Set<Role> roles = roleDtoSet.stream()
-                .map(roleDto -> roleRepository.findByName("ROLE_" + roleDto.getName()))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
 
-        user.setRoles(roles);
-    }
 
 }
 

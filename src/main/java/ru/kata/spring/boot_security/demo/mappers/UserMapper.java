@@ -1,4 +1,4 @@
-package ru.kata.spring.boot_security.demo.util;
+package ru.kata.spring.boot_security.demo.mappers;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Component;
