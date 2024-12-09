@@ -6,13 +6,13 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.kata.spring.boot_security.demo.dto.RoleDto;
 import ru.kata.spring.boot_security.demo.dto.UserDto;
 import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
-import ru.kata.spring.boot_security.demo.repository.RoleRepository;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
 import ru.kata.spring.boot_security.demo.util.UserMapper;
 
@@ -26,16 +26,16 @@ public class UserServiceImp implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
 
-    private final RoleRepository roleRepository;
 
     private final UserMapper userMapper;
 
+    private final BCryptPasswordEncoder passwordEncoder;
 
     public UserServiceImp(UserRepository userRepository,
-                          RoleRepository roleRepository,
-                          UserMapper userMapper) {
+                          UserMapper userMapper,
+                          BCryptPasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
         this.userMapper = userMapper;
     }
 
@@ -76,6 +76,7 @@ public class UserServiceImp implements UserService, UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         if (user == null) {
             throw new UsernameNotFoundException(email);
         }
@@ -92,6 +93,7 @@ public class UserServiceImp implements UserService, UserDetailsService {
     @Override
     public void addUserWithRoles(UserDto userDto) {
         User user = userMapper.toModel(userDto);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         setRolesToUser(user, userDto.getRoles());
 
@@ -103,7 +105,7 @@ public class UserServiceImp implements UserService, UserDetailsService {
     @Override
     public void updateUserWithRoles(UserDto userDto) {
         User existingUser = userRepository.findById(userDto.getId()).orElse(null);
-
+        existingUser.setPassword(passwordEncoder.encode(existingUser.getPassword()));
         if (existingUser != null) {
             existingUser.setFirstname(userDto.getFirstname());
             existingUser.setLastname(userDto.getLastname());
@@ -116,7 +118,6 @@ public class UserServiceImp implements UserService, UserDetailsService {
             userRepository.save(existingUser);
         }
     }
-
     private void setRolesToUser(User user, Set<RoleDto> roleDtoSet) {
         Set<Role> roles = roleDtoSet.stream()
                 .map(roleDto -> roleRepository.findByName("ROLE_" + roleDto.getName()))
@@ -125,4 +126,7 @@ public class UserServiceImp implements UserService, UserDetailsService {
 
         user.setRoles(roles);
     }
+
 }
+
+
