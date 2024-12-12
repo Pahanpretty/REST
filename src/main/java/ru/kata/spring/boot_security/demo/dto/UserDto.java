@@ -14,9 +14,9 @@ import java.util.Set;
 public class UserDto {
 
     private Long id;
+    private String username;
     private String firstname;
     private String lastname;
-    private Integer age;
     private String email;
     private String password;
     private Set<RoleDto> roles;

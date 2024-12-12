@@ -1,66 +1,70 @@
 package ru.kata.spring.boot_security.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Getter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.persistence.*;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-@Setter
-@Getter
+@Data
+@AllArgsConstructor
 @NoArgsConstructor
-@ToString
 @Entity(name = "users")
 public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id")
+    private int id;
+    @Column(name = "username")
+    @NotEmpty(message = "Email should not be empty")
+    @Size(min = 2, max = 30, message = "To short" )
+    private String username;
 
-    private String firstname;
+    @Column(name = "first_name")
+    @NotEmpty(message = "Name should not be empty")
+    @Size(min = 2, max = 30, message = "To short" )
+    private String  firstName;
 
-    private String lastname;
+    @Column(name = "last_name")
+    @NotEmpty(message = "Name should not be empty")
+    @Size(min = 2, max = 30, message = "To short" )
+    private String  lastname;
 
-    private Integer age;
+    @Column(name = "email", unique = true, nullable = false)
+    @NotEmpty(message = "Name should not be empty")
+    @Size(min = 2, max = 30, message = "To short" )
+    private String  email;
 
-    @Column(unique = true)
-    private String email;
-
-    @JsonIgnore
+    @Column(name ="password")
+    @NotEmpty(message = "Password should not be empty")
+    @Size(min = 2, max = 300, message = "To short" )
     private String password;
 
+    @ManyToMany(cascade = CascadeType.PERSIST, fetch = FetchType.EAGER)
+    @JoinTable(name="users_roles",
+            joinColumns = @JoinColumn(name ="users_id"),
+            inverseJoinColumns = @JoinColumn(name ="roles_id"))
+    private Set<Role> roles = new HashSet<>();
 
-    @JsonIgnore
+    @Column(name = "enabled", nullable = false)
     private boolean enabled;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "users_roles",
-            joinColumns = @JoinColumn(name = "users_id"),
-            inverseJoinColumns = @JoinColumn(name = "roles_id")
-    )
-    private List<Role> roles;
-
-    public User(String firstname,
-                String lastName,
-                String email,
-                Integer age,
-                String password) {
-        this.firstname = firstname;
-        this.lastname = lastName;
-        this.email = email;
-        this.age = age;
-        this.password = password;
-        this.enabled = true;
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -69,7 +73,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email;
+        return username;
     }
 
     @Override

@@ -2,91 +2,77 @@ package ru.kata.spring.boot_security.demo.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
-import ru.kata.spring.boot_security.demo.dao.RoleDAO;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.kata.spring.boot_security.demo.dto.UserDto;
+import ru.kata.spring.boot_security.demo.mapper.UserMapper;
+import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
-import ru.kata.spring.boot_security.demo.service.UserServiceImpl;
+import ru.kata.spring.boot_security.demo.service.RoleService;
+import ru.kata.spring.boot_security.demo.service.UserService;
 
 import javax.validation.Valid;
-import java.security.Principal;
+import java.util.List;
+import java.util.stream.Collectors;
 
-@Controller
-@RequestMapping("/")
+
+@RestController
+@RequestMapping("/admin")
 public class AdminController {
-    private final UserServiceImpl userService;
-    private final RoleDAO roleDAO;
+    private final UserService userService;
+    private final RoleService roleService;
+    private final UserMapper userMapper;
+
     @Autowired
-    public AdminController(UserServiceImpl userService, RoleDAO roleDAO) {
+    public AdminController(UserService userService, RoleService roleService, UserMapper userMapper) {
         this.userService = userService;
-        this.roleDAO = roleDAO;
+        this.roleService = roleService;
+        this.userMapper = userMapper;
     }
-///////////////////////////////////////login////////////////////////////////////////////////
+    @GetMapping("/users")
+    public ResponseEntity <List<UserDto>> index() {
+        return new ResponseEntity <> (userService.findAllUsers().stream().map(userMapper::toDto)
+                .collect(Collectors.toList()), HttpStatus.OK);
+    }
+    @PostMapping("/users")
+    public ResponseEntity<HttpStatus> create(@Valid @RequestBody UserDto userDto, BindingResult result) {
 
-    @RequestMapping("/login")
-    public String login() {
-        return "/login";
+        if(result.hasErrors()) {
+            throw new IllegalArgumentException();
+        }
+        userService.saveUser(userMapper.toModel(userDto));
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    // Login form with error
-    @RequestMapping("/login_error")
-    public String loginError(Model model) {
-        model.addAttribute("loginError", true);
-        return "/login";
+    @PatchMapping("/users/{id}")
+    public ResponseEntity<HttpStatus> update(@Valid @RequestBody UserDto userDto) {
+        userService.updateUser(userMapper.toModel(userDto));
+        return new ResponseEntity<>(HttpStatus.OK);
     }
-
-///////////////////////////////////////admin////////////////////////////////////////////////
-
-    @GetMapping(value = "")
-    public String getUsersListForm(Model model, Principal principal) {
-        final String principalName = principal == null ? "aaaa" : principal.getName();
-        final User user = userService.getUserByName(principalName);
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<HttpStatus> delete(@PathVariable("id") long id) {
+        User user = userService.findUserById(id);
         if (user == null) {
-            throw new UsernameNotFoundException("User with principalName: " + principalName + " not found");
+            return ResponseEntity.notFound().build();
         }
-        model.addAttribute("user", new User());
-        model.addAttribute("roles1", roleDAO.findAll());
-        model.addAttribute("users1", user); // с данными user'а
-        model.addAttribute("users", userService.findAllUsers());
-        return "/code-basics";
-    }
-
-    //////////////////////////////edit/update/showById//////////////////////////////////
-    @PostMapping("/edit")
-    public String updateUser(@ModelAttribute User user,
-                             BindingResult bindingResult, Model model) {
-        System.out.println("-------------------------------------------------------UserController.updateUser");
-        System.out.println("-------------------------------------------------------user = " + user + ", bindingResult = " + bindingResult + ", model = " + model);
-        if (bindingResult.hasErrors()) {
-            model.addAttribute("userEdit", user);
-            model.addAttribute("rolesEdit", roleDAO.findAll());
-            return "/code-basics";
-        }
-        userService.updateUser(user);
-        return "redirect:/";
-    }
-
-    ////////////////////////////////create new user//////////////////////////////////////
-
-    @PostMapping("/user")
-    @ResponseStatus(HttpStatus.CREATED)
-    public String addUser(@ModelAttribute("user") @Valid User user,
-                          BindingResult bindingResult, Model model) {
-        userService.conditionForBindingResult(bindingResult);
-        userService.saveUser(user);
-        return "redirect:/";
-    }
-
-
-/////////////////////////////////delete///////////////////////////////////////////////
-
-    @PostMapping("")
-    public String deleteUser(@RequestParam("id") Long id) {
         userService.deleteUser(id);
-        return "redirect:/";
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+    @GetMapping("/users/roles")
+    public List<Role> roleList() {
+        return roleService.findAll();
     }
 
+    @GetMapping("/users/{id}")
+    public User getUser(@PathVariable("id") long id) {
+        return userService.findUserById(id);
+    }
 }
